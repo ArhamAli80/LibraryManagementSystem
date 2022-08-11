@@ -1,89 +1,109 @@
 import {useRef, useState, useEffect, useInsertionEffect} from 'react'
+import React from 'react'
+import axios from 'axios';
 import '../App.css'
 import {Link} from 'react-router-dom'
-import Register from './Register';
+import RegistrationForm from './Register';
 
-const Login = () => {
-    const userRef=useRef();
-    const errRef=useRef();
+function Login(props){
+    const [inputs, setInput] = useState({});
+    const [output, setOutput] = useState("");
 
-    const[user,setUser]=useState('');
-    const[pwd,setPwd]=useState('');
-    const[errMsg,setErrMsg]=useState('');
-    const[success, setSuccess] = useState(false);
 
-    useEffect(() => {
-        userRef.current.focus();
-    }, [])
+    const handleChange=(event)=>{
+        const target = event.target;
+        const value = target.value;
+        const name = target.name;
+        setInput(values => ({...values, [name]: value}))
+    }
 
-    useEffect(() => {
-        setErrMsg('');
-    }, [user,pwd])
+    const validateForm=()=>{
+        var mailformat = /\S+@\S+\.\S+/;
+        var valid = false;
+        if (!inputs.email
+            || !inputs.password){
+            setOutput("Validation failure: Please fill in all text fields.");
+        }
+        else if(!mailformat.test(inputs.email)){
+            setOutput("Validation failure: Invalid e-mail address. Please enter your e-mail again.");
+        }else if(inputs.password.length<8){
+            setOutput("Validation failure: Password is too short. Please enter your password");
+        } else{
+            valid =true;
+        }
+        return valid;  
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        console.log(user,pwd);
-        setUser('');
-        setPwd('');
-        setSuccess(true);
+    }
+
+    const handleSubmit=(event)=>{
+        event.preventDefault();
+
+        const dataLogin = {username: inputs.email,
+                           password: inputs.password};
+
+        console.log(dataLogin);
+
+        if(validateForm()){
+            axios({
+                method: 'post',
+                url: 'http://localhost:8080/user/getUsers',
+                data: dataLogin
+            })
+            .then((response) => {
+                console.log(response);
+                if (response.status === 200){
+                    setOutput("Login success");
+                    const jwtToken = response.headers.authorization.split(' ')[1]
+                    if (jwtToken !== null) {
+                        sessionStorage.setItem("jwt", jwtToken);
+                        console.log(jwtToken);
+                        props.setLoggedinUser(inputs.email);
+                    } else{
+                        setOutput("Token failure");
+                        props.setLoggedinUser("");
+                    }
+                } else{
+                    setOutput("Login failure");
+                    props.setLoggedinUser("");
+                }
+            })
+            .catch(err => {
+                console.log(err.response);
+                setOutput("Login failure");
+                props.setLoggedinUser("");
+            })
+        }
+
     }
 
   return (
-      <>
-        {success ? (
-            <section>
-                <h1>You have succesfully logged in!</h1>
-                <br />
-                <p>
-                    <a href="#">Go to home</a>
-                </p>
-            </section>
-        ) : (
-    <section>
-        {/* <p ref={errRef}className={errMsg?"errmsg":
-        "offscreen"}aria-live="assertive">{errmsg}</p> */}
-        <div className='container'>
-        <h1 className='form__title'>Sign in</h1>
-        <form className='form' onSubmit={handleSubmit}>
-            <div className='form__input-group'>
-            <label htmlFor="username"></label>
-            <input
-                className='form__input'
-                autoFocus placeholder='username or email'
-                type="text"
-                id="username"
-                ref={userRef}
-                autoComplete="off"
-                onChange={(e) => setUser(e.target.value)}
-                value={user}
-                required
-            />
-            </div>
-            <label htmlFor="password"></label>
-            <input
-                className='form__input'
-                autoFocus placeholder='password'
-                type="password"
-                id="password"
-                onChange={(e) => setPwd(e.target.value)}
-                value={pwd}
-                required
-            />
+    <React.Fragment>
+    <form  className="center" onSubmit={handleSubmit} noValidate>
+            <label className="textInput">Email:
+                <input
+                 type="email"
+                 name="email"
+                 value={inputs.email || ""}
+                 onChange={handleChange}
+                 />
+            </label>
+            <br/><br/>
+            <label className="textInput">Password:
+                <input
+                 type="password"
+                 name="password"
+                 value={inputs.password || ""}
+                 onChange={handleChange}
+                 />
+            </label>
+            <br/>
+            <button type="submit">Login</button>
         </form>
-        <br />
-        <button className='form__button'>Sign In</button>
-        <p>
-            <br />
-            Don't have an account?<br />
-            <span>
-            <u><Link to='/register'>Create an account</Link></u>
-            </span>
-        </p>
+        <div className="center">
+            <p>{output}</p>
         </div>
-    </section>
-        )}
-    </>          
-  )
+        </React.Fragment>
+    );
 }
 
 export default Login
